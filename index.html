@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AURUM — Gold Price Intelligence</title>
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+</head>
+<body>
+
+  <!-- Background -->
+  <div class="bg-grid"></div>
+  <div class="bg-glow"></div>
+
+  <!-- Header -->
+  <header>
+    <div class="logo">
+      <span class="logo-symbol">⬡</span>
+      <span class="logo-text">AURUM</span>
+    </div>
+    <div class="header-meta">
+      <span class="model-badge" id="modelBadge">— loading —</span>
+      <span class="header-label">GOLD PRICE INTELLIGENCE</span>
+    </div>
+  </header>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-eyebrow">7-DAY MARKET FORECAST</div>
+    <h1 class="hero-title">
+      Gold<br/><em>Direction</em><br/>Oracle
+    </h1>
+    <p class="hero-sub">Machine learning predictions powered by 70 years of market data, fed funds rate, and USD/INR dynamics.</p>
+    <button class="predict-btn" id="predictBtn" onclick="fetchPredictions()">
+      <span class="btn-icon">◈</span>
+      <span class="btn-text">FETCH PREDICTIONS</span>
+      <span class="btn-loader" id="btnLoader"></span>
+    </button>
+  </section>
+
+  <!-- Status Bar -->
+  <div class="status-bar" id="statusBar" style="display:none">
+    <span class="status-dot"></span>
+    <span id="statusText">Fetching market data…</span>
+  </div>
+
+  <!-- Error -->
+  <div class="error-box" id="errorBox" style="display:none">
+    <span class="error-icon">⚠</span>
+    <span id="errorText"></span>
+  </div>
+
+  <!-- Results -->
+  <section class="results" id="results" style="display:none">
+
+    <!-- Summary strip -->
+    <div class="summary-strip">
+      <div class="summary-item">
+        <div class="summary-label">LATEST GOLD PRICE</div>
+        <div class="summary-value" id="latestPrice">—</div>
+      </div>
+      <div class="summary-divider"></div>
+      <div class="summary-item">
+        <div class="summary-label">DATA DATE</div>
+        <div class="summary-value" id="dataDate">—</div>
+      </div>
+      <div class="summary-divider"></div>
+      <div class="summary-item">
+        <div class="summary-label">MODEL VERSION</div>
+        <div class="summary-value" id="modelVersion">—</div>
+      </div>
+      <div class="summary-divider"></div>
+      <div class="summary-item">
+        <div class="summary-label">PREDICTED AT</div>
+        <div class="summary-value" id="predictedAt">—</div>
+      </div>
+    </div>
+
+    <!-- Prediction cards -->
+    <div class="cards-header">
+      <span class="cards-label">7-DAY FORECAST</span>
+      <span class="cards-note">Each prediction uses prior-day features — no leakage</span>
+    </div>
+    <div class="cards-grid" id="cardsGrid"></div>
+
+    <!-- Trend chart -->
+    <div class="chart-section">
+      <div class="chart-header">
+        <span class="chart-label">PRICE TREND</span>
+        <span class="chart-note">Last 7 trading days</span>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="priceChart"></canvas>
+      </div>
+    </div>
+
+    <!-- MLflow link -->
+    <div class="mlflow-row">
+      <span class="mlflow-label">EXPERIMENT RUN →</span>
+      <a class="mlflow-link" id="mlflowLink" href="#" target="_blank">View on DagsHub MLflow</a>
+    </div>
+
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <span>AURUM © 2026</span>
+    <span class="footer-sep">·</span>
+    <span>Logistic Regression · ElasticNet · Walk-Forward CV</span>
+    <span class="footer-sep">·</span>
+    <span>Not financial advice</span>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
