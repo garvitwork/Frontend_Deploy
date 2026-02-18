@@ -233,3 +233,41 @@ function formatDate(dateStr) {
   const d = new Date(dateStr + "T00:00:00");
   return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
 }
+
+// ── Wake Server ───────────────────────────────────────────────
+async function wakeServer() {
+  const wakeBtn    = document.getElementById("wakeBtn");
+  const wakeStatus = document.getElementById("wakeStatus");
+
+  wakeBtn.disabled = true;
+  wakeStatus.className = "wake-status checking";
+  wakeStatus.textContent = "⏳ Waking server…";
+
+  const MAX_ATTEMPTS = 10;
+  const INTERVAL_MS  = 3000;
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    wakeStatus.textContent = `⏳ Attempt ${attempt}/${MAX_ATTEMPTS}…`;
+    try {
+      const res = await fetch(`${API_BASE}/`, { signal: AbortSignal.timeout(5000) });
+      if (res.ok) {
+        wakeStatus.className = "wake-status awake";
+        wakeStatus.textContent = "✓ Server is awake! Ready to predict.";
+        wakeBtn.disabled = false;
+        wakeBtn.textContent = "WAKE AGAIN";
+        return;
+      }
+    } catch (e) {
+      // Still waking up — keep trying
+    }
+
+    if (attempt < MAX_ATTEMPTS) {
+      await new Promise(r => setTimeout(r, INTERVAL_MS));
+    }
+  }
+
+  // Failed after all attempts
+  wakeStatus.className = "wake-status failed";
+  wakeStatus.textContent = "✗ Server unreachable. Try again.";
+  wakeBtn.disabled = false;
+}

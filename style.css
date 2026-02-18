@@ -451,3 +451,64 @@ footer {
   .cards-grid { grid-template-columns: 1fr 1fr; }
   header { flex-direction: column; align-items: flex-start; gap: 16px; }
 }
+
+/* ── Wake bar ── */
+.wake-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-dim);
+  border-left: 3px solid var(--gold-dim);
+  border-radius: var(--radius);
+  padding: 16px 24px;
+  margin-bottom: 32px;
+  flex-wrap: wrap;
+}
+
+.wake-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.wake-text {
+  font-size: 14px;
+  color: var(--text-muted);
+  flex: 1;
+  min-width: 200px;
+}
+
+.wake-btn {
+  background: transparent;
+  border: 1px solid var(--gold-dim);
+  color: var(--gold-dim);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 0.18em;
+  padding: 10px 24px;
+  cursor: pointer;
+  border-radius: var(--radius);
+  transition: all 0.25s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.wake-btn:hover {
+  background: var(--gold-dim);
+  color: var(--black);
+}
+
+.wake-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.wake-status {
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  min-width: 160px;
+}
+
+.wake-status.checking { color: var(--text-muted); }
+.wake-status.awake    { color: var(--up); }
+.wake-status.failed   { color: var(--down); }

@@ -32,6 +32,13 @@
       Gold<br/><em>Direction</em><br/>Oracle
     </h1>
     <p class="hero-sub">Machine learning predictions powered by 70 years of market data, fed funds rate, and USD/INR dynamics.</p>
+    <div class="wake-bar" id="wakeBar">
+      <span class="wake-icon">⚡</span>
+      <span class="wake-text">Server may be sleeping if inactive. Wake it before predicting.</span>
+      <button class="wake-btn" id="wakeBtn" onclick="wakeServer()">WAKE SERVER</button>
+      <span class="wake-status" id="wakeStatus"></span>
+    </div>
+
     <button class="predict-btn" id="predictBtn" onclick="fetchPredictions()">
       <span class="btn-icon">◈</span>
       <span class="btn-text">FETCH PREDICTIONS</span>
@@ -59,9 +66,7 @@
       <div class="summary-item">
         <div class="summary-label">LATEST GOLD PRICE</div>
         <div class="summary-value" id="latestPrice">—</div>
-        <div class="summary-note">International spot price · 24k · 10g · incl. GST
-          
-        </div>
+        <div class="summary-note">Intl. spot · 24k · 10g · incl. GST</div>
       </div>
       <div class="summary-divider"></div>
       <div class="summary-item">
