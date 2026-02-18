@@ -4,8 +4,9 @@
 
 const API_BASE = "https://gold-api-u521.onrender.com"; // ← change to Render URL after deploy
 
-let priceChart  = null;
-let USD_INR_RATE = 86.5; // fallback rate
+let priceChart    = null;
+let USD_INR_RATE  = 86.5; // fallback rate
+let _lastData     = null;  // cached for currency re-render
 
 // ── Fetch USD/INR rate ────────────────────────────────────────
 async function fetchUsdInrRate() {
@@ -18,12 +19,23 @@ async function fetchUsdInrRate() {
   }
 }
 
+let currentCurrency = "INR"; // tracks active currency toggle
+
 function toINR(usdPerOz) {
-  const pricePerGram   = usdPerOz / 31.1035;           // troy oz → per gram
-  const pricePer10gUSD = pricePerGram * 10;             // per 10 grams in USD
-  const baseINR        = pricePer10gUSD * USD_INR_RATE; // convert to INR
-  const withGST        = baseINR * 1.03;                // +3% GST only
+  const pricePerGram   = usdPerOz / 31.1035;
+  const pricePer10gUSD = pricePerGram * 10;
+  const baseINR        = pricePer10gUSD * USD_INR_RATE;
+  const withGST        = baseINR * 1.03;
   return "₹" + withGST.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// USD = per troy oz (standard international unit)
+function toUSD(usdPerOz) {
+  return "$" + usdPerOz.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function formatPrice(usdPerOz) {
+  return currentCurrency === "INR" ? toINR(usdPerOz) : toUSD(usdPerOz);
 }
 
 // ── Fetch model info on load ─────────────────────────────────
@@ -97,16 +109,34 @@ async function fetchPredictions() {
 async function renderResults(data) {
   // Refresh INR rate before rendering
   await fetchUsdInrRate();
+  _lastData = data; // cache for currency toggle re-render
 
   const predictions = data.predictions;
   const lastDay     = predictions[predictions.length - 1];
 
-  // Summary strip — price in INR
-  document.getElementById("latestPrice").textContent   = toINR(lastDay.gold_price_usd);
+  // Summary note changes by currency
+  const isINR = currentCurrency === "INR";
+  document.querySelector(".summary-note").textContent =
+    isINR ? "Intl. spot · 24k · 10g · incl. GST" : "Intl. spot · 24k · per troy oz";
+
+  // Summary strip
+  document.getElementById("latestPrice").textContent   = formatPrice(lastDay.gold_price_usd);
   document.getElementById("dataDate").textContent       = lastDay.date;
   document.getElementById("modelVersion").textContent   = `v${data.model_version} · ${data.model_alias}`;
-  document.getElementById("predictedAt").textContent    =
-    new Date(data.predicted_at).toLocaleString("en-IN", { hour12: true });
+  // Ensure timestamp is parsed as UTC (append Z if missing)
+  const rawTs = data.predicted_at;
+  const utcTs = rawTs.endsWith("Z") || rawTs.includes("+") ? rawTs : rawTs + "Z";
+  document.getElementById("predictedAt").textContent =
+    new Date(utcTs).toLocaleString("en-IN", {
+      timeZone: "Asia/Kolkata",
+      hour12: true,
+      day:    "2-digit",
+      month:  "2-digit",
+      year:   "numeric",
+      hour:   "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    }) + " IST";
 
   // Cards — price in INR
   const grid = document.getElementById("cardsGrid");
@@ -121,7 +151,7 @@ async function renderResults(data) {
     card.innerHTML = `
       <div class="card-day">DAY ${p.day}</div>
       <div class="card-date">${formatDate(p.date)}</div>
-      <div class="card-price">${toINR(p.gold_price_usd)}</div>
+      <div class="card-price">${formatPrice(p.gold_price_usd)}</div>
       <div class="card-arrow">${isUp ? "↑" : "↓"}</div>
       <div class="card-direction">${p.prediction}</div>
       <div class="card-conf-bar">
@@ -152,8 +182,13 @@ async function renderResults(data) {
 
 // ── Chart ─────────────────────────────────────────────────────
 function renderChart(predictions) {
+  const isINR  = currentCurrency === "INR";
   const labels = predictions.map(p => formatDate(p.date));
-  const prices = predictions.map(p => (p.gold_price_usd / 31.1035) * 10 * USD_INR_RATE * 1.03); // INR per 10g with duty+GST
+  const prices = predictions.map(p =>
+    isINR
+      ? (p.gold_price_usd / 31.1035) * 10 * USD_INR_RATE * 1.03  // INR per 10g + GST
+      : p.gold_price_usd                                            // USD per troy oz
+  );
   const colors = predictions.map(p => p.prediction === "UP" ? "#4CAF82" : "#E05252");
 
   const ctx = document.getElementById("priceChart").getContext("2d");
@@ -164,7 +199,7 @@ function renderChart(predictions) {
     data: {
       labels,
       datasets: [{
-        label: "Gold Price (INR/10g)",
+        label: isINR ? "Gold Price (INR/10g)" : "Gold Price (USD/oz)",
         data: prices,
         borderColor: "#C9A84C",
         borderWidth: 1.5,
@@ -199,8 +234,10 @@ function renderChart(predictions) {
           padding: 16,
           callbacks: {
             label: (ctx) => {
-              const inr = ctx.parsed.y;
-              return ` ₹${inr.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+              const v = ctx.parsed.y;
+              return isINR
+                ? ` ₹${v.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                : ` $${v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/oz`;
             },
           },
         },
@@ -208,10 +245,7 @@ function renderChart(predictions) {
       scales: {
         x: {
           grid: { color: "rgba(255,255,255,0.04)" },
-          ticks: {
-            color: "#9A9080",
-            font: { family: "'JetBrains Mono', monospace", size: 13 },
-          },
+          ticks: { color: "#9A9080", font: { family: "'JetBrains Mono', monospace", size: 13 } },
           border: { color: "rgba(255,255,255,0.06)" },
         },
         y: {
@@ -219,7 +253,7 @@ function renderChart(predictions) {
           ticks: {
             color: "#9A9080",
             font: { family: "'JetBrains Mono', monospace", size: 13 },
-            callback: (v) => `₹${(v/1000).toFixed(0)}k`,
+            callback: (v) => isINR ? `₹${(v/1000).toFixed(0)}k` : `$${v.toFixed(0)}`,
           },
           border: { color: "rgba(255,255,255,0.06)" },
         },
@@ -232,6 +266,19 @@ function renderChart(predictions) {
 function formatDate(dateStr) {
   const d = new Date(dateStr + "T00:00:00");
   return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
+}
+
+// ── Currency Toggle ───────────────────────────────────────────
+function setCurrency(currency) {
+  if (currentCurrency === currency) return;
+  currentCurrency = currency;
+
+  // Update button active states
+  document.getElementById("btnINR").classList.toggle("active", currency === "INR");
+  document.getElementById("btnUSD").classList.toggle("active", currency === "USD");
+
+  // Re-render if we have data
+  if (_lastData) renderResults(_lastData);
 }
 
 // ── Wake Server ───────────────────────────────────────────────

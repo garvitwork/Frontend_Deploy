@@ -223,6 +223,27 @@ header {
   color: var(--down);
 }
 
+.currency-toggle {
+  display: flex; gap: 6px;
+  margin-bottom: 4px;
+}
+
+.cur-btn {
+  background: transparent;
+  border: 1px solid var(--border-dim);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  padding: 6px 14px;
+  cursor: pointer;
+  border-radius: var(--radius);
+  transition: all 0.2s ease;
+}
+
+.cur-btn:hover { border-color: var(--gold-dim); color: var(--gold-dim); }
+.cur-btn.active { border-color: var(--gold); color: var(--gold); background: rgba(201,168,76,0.08); }
+
 /* ── Summary strip ── */
 .summary-strip {
   display: flex; align-items: stretch;
