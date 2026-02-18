@@ -4,15 +4,36 @@
 
 const API_BASE = "https://gold-api-u521.onrender.com"; // ← change to Render URL after deploy
 
-let priceChart = null;
+let priceChart  = null;
+let USD_INR_RATE = 86.5; // fallback rate
+
+// ── Fetch USD/INR rate ────────────────────────────────────────
+async function fetchUsdInrRate() {
+  try {
+    const res  = await fetch("https://api.frankfurter.app/latest?from=USD&to=INR");
+    const data = await res.json();
+    if (data.rates && data.rates.INR) USD_INR_RATE = data.rates.INR;
+  } catch (e) {
+    console.warn("USD/INR fetch failed, using fallback:", USD_INR_RATE);
+  }
+}
+
+function toINR(usdPerOz) {
+  const pricePerGram   = usdPerOz / 31.1035;           // troy oz → per gram
+  const pricePer10gUSD = pricePerGram * 10;             // per 10 grams in USD
+  const baseINR        = pricePer10gUSD * USD_INR_RATE; // convert to INR
+  const withGST        = baseINR * 1.03;                // +3% GST only
+  return "₹" + withGST.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
 
 // ── Fetch model info on load ─────────────────────────────────
 window.addEventListener("DOMContentLoaded", async () => {
+  await fetchUsdInrRate();
   try {
     const res  = await fetch(`${API_BASE}/`);
     const data = await res.json();
-    const badge = document.getElementById("modelBadge");
-    badge.textContent = `Model v${data.model_version} · ${data.model_alias}`;
+    document.getElementById("modelBadge").textContent =
+      `Model v${data.model_version} · ${data.model_alias}`;
   } catch (e) {
     document.getElementById("modelBadge").textContent = "API offline";
   }
@@ -20,15 +41,14 @@ window.addEventListener("DOMContentLoaded", async () => {
 
 // ── Main predict ─────────────────────────────────────────────
 async function fetchPredictions() {
-  const btn      = document.getElementById("predictBtn");
-  const loader   = document.getElementById("btnLoader");
-  const statusBar = document.getElementById("statusBar");
+  const btn        = document.getElementById("predictBtn");
+  const loader     = document.getElementById("btnLoader");
+  const statusBar  = document.getElementById("statusBar");
   const statusText = document.getElementById("statusText");
-  const errorBox  = document.getElementById("errorBox");
-  const errorText = document.getElementById("errorText");
-  const results   = document.getElementById("results");
+  const errorBox   = document.getElementById("errorBox");
+  const errorText  = document.getElementById("errorText");
+  const results    = document.getElementById("results");
 
-  // Reset UI
   btn.disabled = true;
   loader.classList.add("active");
   errorBox.style.display  = "none";
@@ -52,7 +72,6 @@ async function fetchPredictions() {
 
   try {
     const res = await fetch(`${API_BASE}/predict`, { method: "POST" });
-
     clearInterval(stepInterval);
 
     if (!res.ok) {
@@ -61,11 +80,10 @@ async function fetchPredictions() {
     }
 
     const data = await res.json();
-    renderResults(data);
+    await renderResults(data);
 
   } catch (e) {
     clearInterval(stepInterval);
-    statusBar.style.display = "none";
     errorBox.style.display  = "flex";
     errorText.textContent   = e.message || "Could not reach the API. Is the server running?";
   } finally {
@@ -76,19 +94,21 @@ async function fetchPredictions() {
 }
 
 // ── Render ───────────────────────────────────────────────────
-function renderResults(data) {
-  const predictions = data.predictions;
+async function renderResults(data) {
+  // Refresh INR rate before rendering
+  await fetchUsdInrRate();
 
-  // Summary strip
-  const lastDay = predictions[predictions.length - 1];
-  document.getElementById("latestPrice").textContent =
-    `$${lastDay.gold_price_usd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  document.getElementById("dataDate").textContent    = lastDay.date;
-  document.getElementById("modelVersion").textContent = `v${data.model_version} · ${data.model_alias}`;
-  document.getElementById("predictedAt").textContent  =
+  const predictions = data.predictions;
+  const lastDay     = predictions[predictions.length - 1];
+
+  // Summary strip — price in INR
+  document.getElementById("latestPrice").textContent   = toINR(lastDay.gold_price_usd);
+  document.getElementById("dataDate").textContent       = lastDay.date;
+  document.getElementById("modelVersion").textContent   = `v${data.model_version} · ${data.model_alias}`;
+  document.getElementById("predictedAt").textContent    =
     new Date(data.predicted_at).toLocaleString("en-IN", { hour12: true });
 
-  // Cards
+  // Cards — price in INR
   const grid = document.getElementById("cardsGrid");
   grid.innerHTML = "";
 
@@ -101,7 +121,7 @@ function renderResults(data) {
     card.innerHTML = `
       <div class="card-day">DAY ${p.day}</div>
       <div class="card-date">${formatDate(p.date)}</div>
-      <div class="card-price">$${p.gold_price_usd.toLocaleString("en-US", {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+      <div class="card-price">${toINR(p.gold_price_usd)}</div>
       <div class="card-arrow">${isUp ? "↑" : "↓"}</div>
       <div class="card-direction">${p.prediction}</div>
       <div class="card-conf-bar">
@@ -112,37 +132,31 @@ function renderResults(data) {
 
     grid.appendChild(card);
 
-    // Staggered animation
     setTimeout(() => {
       card.classList.add("visible");
-      // Animate confidence bar
       const fill = card.querySelector(".card-conf-fill");
-      setTimeout(() => {
-        fill.style.width = fill.dataset.width + "%";
-      }, 100);
+      setTimeout(() => { fill.style.width = fill.dataset.width + "%"; }, 100);
     }, i * 80);
   });
 
-  // Chart
+  // Chart — prices in INR
   renderChart(predictions);
 
   // MLflow link
-  const link = document.getElementById("mlflowLink");
-  link.href = data.mlflow_url;
+  document.getElementById("mlflowLink").href = data.mlflow_url;
 
   // Show results
   document.getElementById("results").style.display = "block";
   document.getElementById("results").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-// ── Chart ────────────────────────────────────────────────────
+// ── Chart ─────────────────────────────────────────────────────
 function renderChart(predictions) {
   const labels = predictions.map(p => formatDate(p.date));
-  const prices = predictions.map(p => p.gold_price_usd);
+  const prices = predictions.map(p => (p.gold_price_usd / 31.1035) * 10 * USD_INR_RATE * 1.03); // INR per 10g with duty+GST
   const colors = predictions.map(p => p.prediction === "UP" ? "#4CAF82" : "#E05252");
 
   const ctx = document.getElementById("priceChart").getContext("2d");
-
   if (priceChart) priceChart.destroy();
 
   priceChart = new Chart(ctx, {
@@ -150,17 +164,17 @@ function renderChart(predictions) {
     data: {
       labels,
       datasets: [{
-        label: "Gold Price (USD)",
+        label: "Gold Price (INR/10g)",
         data: prices,
         borderColor: "#C9A84C",
         borderWidth: 1.5,
         pointBackgroundColor: colors,
         pointBorderColor: colors,
-        pointRadius: 5,
-        pointHoverRadius: 7,
+        pointRadius: 6,
+        pointHoverRadius: 9,
         fill: true,
         backgroundColor: (ctx) => {
-          const gradient = ctx.chart.ctx.createLinearGradient(0, 0, 0, 160);
+          const gradient = ctx.chart.ctx.createLinearGradient(0, 0, 0, 200);
           gradient.addColorStop(0, "rgba(201,168,76,0.12)");
           gradient.addColorStop(1, "rgba(201,168,76,0)");
           return gradient;
@@ -178,13 +192,16 @@ function renderChart(predictions) {
           backgroundColor: "#161616",
           borderColor: "rgba(201,168,76,0.2)",
           borderWidth: 1,
-          titleColor: "#7A6130",
+          titleColor: "#A07830",
           bodyColor: "#F0EAD6",
-          titleFont: { family: "'JetBrains Mono', monospace", size: 10 },
-          bodyFont:  { family: "'JetBrains Mono', monospace", size: 12 },
-          padding: 12,
+          titleFont: { family: "'JetBrains Mono', monospace", size: 12 },
+          bodyFont:  { family: "'JetBrains Mono', monospace", size: 14 },
+          padding: 16,
           callbacks: {
-            label: (ctx) => ` $${ctx.parsed.y.toLocaleString("en-US", { minimumFractionDigits: 2 })}`,
+            label: (ctx) => {
+              const inr = ctx.parsed.y;
+              return ` ₹${inr.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            },
           },
         },
       },
@@ -192,17 +209,17 @@ function renderChart(predictions) {
         x: {
           grid: { color: "rgba(255,255,255,0.04)" },
           ticks: {
-            color: "#3A3530",
-            font: { family: "'JetBrains Mono', monospace", size: 9 },
+            color: "#9A9080",
+            font: { family: "'JetBrains Mono', monospace", size: 13 },
           },
           border: { color: "rgba(255,255,255,0.06)" },
         },
         y: {
           grid: { color: "rgba(255,255,255,0.04)" },
           ticks: {
-            color: "#3A3530",
-            font: { family: "'JetBrains Mono', monospace", size: 9 },
-            callback: (v) => `$${v.toLocaleString()}`,
+            color: "#9A9080",
+            font: { family: "'JetBrains Mono', monospace", size: 13 },
+            callback: (v) => `₹${(v/1000).toFixed(0)}k`,
           },
           border: { color: "rgba(255,255,255,0.06)" },
         },
@@ -211,7 +228,7 @@ function renderChart(predictions) {
   });
 }
 
-// ── Helpers ──────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────
 function formatDate(dateStr) {
   const d = new Date(dateStr + "T00:00:00");
   return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
