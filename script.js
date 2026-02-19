@@ -150,7 +150,7 @@ async function renderResults(data) {
     card.className = `card ${isUp ? "up" : "down"}`;
     card.innerHTML = `
       <div class="card-day">DAY ${p.day}</div>
-      <div class="card-date">${formatDate(p.date)}</div>
+
       <div class="card-price">${formatPrice(p.gold_price_usd)}</div>
       <div class="card-arrow">${isUp ? "↑" : "↓"}</div>
       <div class="card-direction">${p.prediction}</div>
@@ -183,7 +183,7 @@ async function renderResults(data) {
 // ── Chart ─────────────────────────────────────────────────────
 function renderChart(predictions) {
   const isINR  = currentCurrency === "INR";
-  const labels = predictions.map(p => formatDate(p.date));
+  const labels = predictions.map(p => `Day ${p.day}`);
   const prices = predictions.map(p =>
     isINR
       ? (p.gold_price_usd / 31.1035) * 10 * USD_INR_RATE * 1.03  // INR per 10g + GST
