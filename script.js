@@ -142,8 +142,13 @@ async function renderResults(data) {
   const grid = document.getElementById("cardsGrid");
   grid.innerHTML = "";
 
+  // For display: compare each day's price to the PREVIOUS day's predicted price
+  // Day 1 compares to latest actual price (lastDay.gold_price_usd)
+  const displayPrices = predictions.map(p => p.gold_price_usd);
+
   predictions.forEach((p, i) => {
-    const isUp      = p.prediction === "UP";
+    const prevPrice = i === 0 ? lastDay.gold_price_usd : displayPrices[i - 1];
+    const isUp      = p.gold_price_usd > prevPrice;   // price-based UP/DOWN vs prev day
     const confFloat = p.probability * 100;
 
     const card = document.createElement("div");
@@ -153,7 +158,7 @@ async function renderResults(data) {
 
       <div class="card-price">${formatPrice(p.gold_price_usd)}</div>
       <div class="card-arrow">${isUp ? "↑" : "↓"}</div>
-      <div class="card-direction">${p.prediction}</div>
+      <div class="card-direction">${isUp ? "UP" : "DOWN"}</div>
       <div class="card-conf-bar">
         <div class="card-conf-fill" data-width="${confFloat.toFixed(1)}"></div>
       </div>
@@ -189,7 +194,12 @@ function renderChart(predictions) {
       ? (p.gold_price_usd / 31.1035) * 10 * USD_INR_RATE * 1.03  // INR per 10g + GST
       : p.gold_price_usd                                            // USD per troy oz
   );
-  const colors = predictions.map(p => p.prediction === "UP" ? "#4CAF82" : "#E05252");
+  // Chart dot colors: green if price > previous day, red if lower
+  const chartPrices = predictions.map(p => p.gold_price_usd);
+  const colors = predictions.map((p, i) => {
+    const prev = i === 0 ? _lastData.predictions[_lastData.predictions.length - 1].gold_price_usd : chartPrices[i - 1];
+    return p.gold_price_usd > prev ? "#4CAF82" : "#E05252";
+  });
 
   const ctx = document.getElementById("priceChart").getContext("2d");
   if (priceChart) priceChart.destroy();
